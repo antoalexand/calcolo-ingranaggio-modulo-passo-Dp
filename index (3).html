@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calcolo ingranaggio ad evolvente</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#e6e8ea; --panel:#f6f7f8; --ink:#1f2428; --muted:#5d666e; --line:#c5cad0;
+  --accent:#a8641a; --accent-ink:#fff; --key:#fff0d6; --warn:#fbe9b7; --err:#a4161a;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15181b; --panel:#1f2428; --ink:#e8eaec; --muted:#9aa3ab; --line:#39414a;
+    --accent:#e0913a; --accent-ink:#1a1206; --key:#3a2c16; --warn:#4a3c14; --err:#ff8a8d;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15181b; --panel:#1f2428; --ink:#e8eaec; --muted:#9aa3ab; --line:#39414a;
+  --accent:#e0913a; --accent-ink:#1a1206; --key:#3a2c16; --warn:#4a3c14; --err:#ff8a8d;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Barlow,system-ui,Arial,sans-serif;font-size:16px;line-height:1.45}
+main{max-width:720px;margin:0 auto;padding:28px 16px 40px}
+h1{font-family:"Barlow Semi Condensed",Arial,sans-serif;font-weight:700;font-size:2rem;margin:0 0 4px;letter-spacing:.01em}
+.sub{color:var(--muted);margin:0 0 22px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+label{display:block;font-weight:600;font-size:.95rem;margin-bottom:5px}
+input{width:100%;padding:11px 12px;font:inherit;font-size:1.1rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px}
+input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btns{display:flex;gap:10px;margin-top:18px}
+button{font:inherit;font-weight:700;font-size:1.05rem;padding:13px 18px;border-radius:4px;cursor:pointer;border:1px solid var(--accent)}
+#calc{flex:1;background:var(--accent);color:var(--accent-ink)}
+#reset{background:transparent;color:var(--ink);border-color:var(--line)}
+.err{color:var(--err);font-weight:600;margin:14px 0 0;min-height:1.2em}
+#out{display:none;margin-top:22px}
+.key{background:var(--key);border-left:5px solid var(--accent);padding:12px 16px;border-radius:4px;margin-bottom:16px}
+.key .r{border:0;padding:5px 0}
+.r{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--line)}
+.r span:last-child{font-family:"Barlow Semi Condensed",Arial,sans-serif;font-weight:700;font-size:1.1rem;text-align:right;white-space:nowrap}
+h2{font-family:"Barlow Semi Condensed",Arial,sans-serif;font-size:1.15rem;margin:22px 0 4px}
+.note{margin-top:16px;padding:12px 14px;background:var(--warn);border-radius:4px;font-size:.92rem}
+.note.hide{display:none}
+.f{color:var(--muted);font-size:.85rem;margin-top:18px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Calcolo ingranaggio ad evolvente</h1>
+  <p class="sub">Dalle misure rilevate su un pezzo: inserisci diametro esterno e numero di denti.</p>
+
+  <div class="panel">
+    <div class="grid">
+      <div><label for="de">Diametro esterno De [mm]</label><input id="de" type="number" inputmode="decimal" step="0.001" min="0" placeholder="es. 20"></div>
+      <div><label for="z">Numero denti Z</label><input id="z" type="number" inputmode="numeric" step="1" min="6" placeholder="es. 14"></div>
+      <div><label for="alpha">Angolo di pressione [°]</label><input id="alpha" type="number" inputmode="decimal" step="0.1" value="20"></div>
+    </div>
+    <div class="btns"><button id="calc" type="button">Calcola</button><button id="reset" type="button">Azzera</button></div>
+    <p class="err" id="err" role="alert"></p>
+  </div>
+
+  <section id="out" aria-live="polite">
+    <div class="key">
+      <div class="r"><span>Modulo calcolato</span><span id="m"></span></div>
+      <div class="r"><span>Modulo normalizzato più vicino</span><span id="mn"></span></div>
+      <div class="r"><span>Scarto dal modulo normalizzato</span><span id="sc"></span></div>
+    </div>
+    <div class="note hide" id="nota"></div>
+
+    <h2>Diametri</h2>
+    <div class="r"><span>Primitivo Dp</span><span id="dp"></span></div>
+    <div class="r"><span>Base Db</span><span id="db"></span></div>
+    <div class="r"><span>Esterno De</span><span id="dee"></span></div>
+    <div class="r"><span>Fondo teorico Df</span><span id="df"></span></div>
+
+    <h2>Dente</h2>
+    <div class="r"><span>Passo circolare p</span><span id="p"></span></div>
+    <div class="r"><span>Passo base pb</span><span id="pb"></span></div>
+    <div class="r"><span>Addendum ha</span><span id="ha"></span></div>
+    <div class="r"><span>Dedendum hf</span><span id="hf"></span></div>
+    <div class="r"><span>Altezza totale dente h</span><span id="h"></span></div>
+    <div class="r"><span>Spessore sul primitivo s</span><span id="s"></span></div>
+    <div class="r"><span>Angolo di pressione</span><span id="a"></span></div>
+
+    <p class="f">Dentatura cilindrica a denti dritti, standard, senza correzione di profilo (addendum = m, dedendum = 1,25·m). Con spostamento di profilo il modulo ricavato da De può risultare non normalizzato.</p>
+  </section>
+</main>
+
+<script>
+const MODULI=[0.3,0.4,0.5,0.6,0.8,1,1.25,1.5,2,2.5,3,4,5,6,8,10,12,16,20];
+const $=id=>document.getElementById(id);
+const fmt=(v,d=3)=>v.toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d});
+const mm=v=>fmt(v)+" mm";
+
+function save(){try{localStorage.setItem("ingr",JSON.stringify({de:$("de").value,z:$("z").value,a:$("alpha").value}))}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem("ingr")||"null");if(s){$("de").value=s.de;$("z").value=s.z;$("alpha").value=s.a}}catch(e){}}
+
+function calcola(){
+  const De=parseFloat($("de").value), Z=parseInt($("z").value,10), al=parseFloat($("alpha").value);
+  const err=$("err"); err.textContent="";
+  if(!(De>0)){err.textContent="Inserisci un diametro esterno maggiore di zero.";return}
+  if(!(Z>=6)){err.textContent="Inserisci un numero di denti pari almeno a 6.";return}
+  if(!(al>0&&al<45)){err.textContent="Inserisci un angolo di pressione tra 0 e 45°.";return}
+  save();
+  const m=De/(Z+2), Dp=m*Z, r=al*Math.PI/180, Db=Dp*Math.cos(r), p=Math.PI*m, pb=p*Math.cos(r);
+  const ha=m, hf=1.25*m, Df=Dp-2*hf;
+  let mn=MODULI[0]; for(const x of MODULI){ if(Math.abs(x-m)<Math.abs(mn-m)) mn=x; }
+  const scarto=(m-mn)/mn*100;
+  $("m").textContent=fmt(m)+" mm";
+  $("mn").textContent=fmt(mn,2)+" mm";
+  $("sc").textContent=(scarto>0?"+":"")+fmt(scarto,1)+" %";
+  $("dp").textContent=mm(Dp); $("db").textContent=mm(Db); $("dee").textContent=mm(De); $("df").textContent=mm(Df);
+  $("p").textContent=mm(p); $("pb").textContent=mm(pb); $("ha").textContent=mm(ha); $("hf").textContent=mm(hf);
+  $("h").textContent=mm(ha+hf); $("s").textContent=mm(p/2); $("a").textContent=fmt(al,1)+"°";
+  const n=$("nota");
+  if(Math.abs(scarto)>2){
+    const deAtteso=mn*(Z+2);
+    n.textContent="Lo scarto supera il 2%: con modulo "+fmt(mn,2)+" e Z = "+Z+" il De standard sarebbe "+mm(deAtteso)+". Controlla la misura, il numero di denti o la presenza di correzione di profilo.";
+    n.classList.remove("hide");
+  } else n.classList.add("hide");
+  $("out").style.display="block";
+}
+function azzera(){$("de").value="";$("z").value="";$("alpha").value="20";$("err").textContent="";$("out").style.display="none";save();$("de").focus()}
+
+$("calc").addEventListener("click",calcola);
+$("reset").addEventListener("click",azzera);
+["de","z","alpha"].forEach(i=>$(i).addEventListener("keydown",e=>{if(e.key==="Enter")calcola()}));
+load();
+</script>
+</body>
+</html>
